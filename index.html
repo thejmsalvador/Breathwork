@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#05070f" />
+<title>The Lantern Tide</title>
+<style>
+  :root {
+    --ink: #e9ecf5;
+    --ink-soft: rgba(233, 236, 245, 0.7);
+    --ink-faint: rgba(233, 236, 245, 0.42);
+    --gold: #f4c98a;
+    --panel: rgba(10, 16, 30, 0.72);
+    --border: rgba(180, 200, 255, 0.16);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: #05070f; overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    touch-action: none;
+  }
+  #world { position: fixed; inset: 0; display: block; z-index: 0; }
+
+  /* Overlay layer — transparent to pointer except interactive children */
+  #ui { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+  #ui button, #ui input, #ui label.chip, #ui .clickable { pointer-events: auto; }
+
+  .screen {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+    padding: 24px;
+    opacity: 0; visibility: hidden; transition: opacity 0.9s ease, visibility 0.9s ease;
+    background: radial-gradient(ellipse at center, rgba(5,7,15,0.35) 0%, rgba(5,7,15,0.72) 100%);
+  }
+  .screen.on { opacity: 1; visibility: visible; }
+
+  .panel {
+    max-width: 460px; width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 30px 28px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+  }
+  h1 {
+    font-weight: 300; letter-spacing: 0.14em; text-transform: uppercase;
+    font-size: clamp(22px, 5.5vw, 30px); margin: 0 0 6px;
+    color: var(--ink);
+  }
+  .tagline { color: var(--ink-soft); font-weight: 300; font-size: 14.5px; line-height: 1.55; margin: 0 auto 22px; max-width: 360px; }
+  .label { color: var(--ink-faint); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; margin: 18px 0 9px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  label.chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 8px 14px; font-size: 13px; color: var(--ink-soft);
+    cursor: pointer; transition: all 0.2s ease; user-select: none;
+  }
+  label.chip:hover { border-color: rgba(244,201,138,0.5); color: var(--ink); }
+  label.chip.sel { background: rgba(244,201,138,0.14); border-color: var(--gold); color: var(--gold); }
+  label.chip input { display: none; }
+
+  .toggles { display: flex; gap: 18px; justify-content: center; margin-top: 18px; }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; user-select: none; }
+  .toggle input { accent-color: var(--gold); width: 15px; height: 15px; }
+
+  .btn {
+    margin-top: 26px; border: 1px solid rgba(244,201,138,0.55);
+    background: rgba(244,201,138,0.10); color: var(--gold);
+    font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 400;
+    padding: 13px 36px; border-radius: 999px; cursor: pointer;
+    transition: all 0.25s ease;
+  }
+  .btn:hover { background: rgba(244,201,138,0.20); box-shadow: 0 0 26px rgba(244,201,138,0.25); }
+  .btn.ghost { border-color: var(--border); color: var(--ink-soft); background: transparent; }
+  .btn.ghost:hover { color: var(--ink); border-color: var(--ink-faint); box-shadow: none; }
+  .btn-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .note { color: var(--ink-faint); font-size: 12px; line-height: 1.5; margin-top: 16px; }
+
+  /* HUD */
+  #hud { position: absolute; inset: 0; opacity: 0; transition: opacity 0.8s ease; }
+  #hud.on { opacity: 1; }
+  #topbar { position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; }
+  .icon-btn {
+    pointer-events: auto; width: 38px; height: 38px; border-radius: 50%;
+    border: 1px solid var(--border); background: rgba(10,16,30,0.5);
+    color: var(--ink-soft); font-size: 15px; cursor: pointer; line-height: 1;
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+  }
+  .icon-btn:hover { color: var(--ink); border-color: var(--ink-faint); }
+
+  #phaseword {
+    position: absolute; left: 0; right: 0; top: 50%;
+    transform: translateY(-50%); margin-top: -1px;
+    text-align: center; pointer-events: none;
+    font-weight: 200; letter-spacing: 0.42em; text-transform: uppercase;
+    font-size: clamp(15px, 3.4vw, 20px); color: rgba(255,255,255,0.55);
+    text-shadow: 0 0 18px rgba(180,210,255,0.35);
+    transition: opacity 0.5s ease; padding-left: 0.42em;
+  }
+  #movename {
+    position: absolute; left: 0; right: 0; top: calc(50% + 84px);
+    text-align: center; color: var(--ink-faint);
+    font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase;
+  }
+  #breaths {
+    position: absolute; left: 0; right: 0; bottom: 26px; text-align: center;
+    color: var(--ink-faint); font-size: 12px; letter-spacing: 0.16em;
+    transition: opacity 0.8s ease;
+  }
+  #hint {
+    position: absolute; left: 0; right: 0; bottom: 52px; text-align: center;
+    color: var(--ink-faint); font-size: 12px; letter-spacing: 0.05em;
+    transition: opacity 1.2s ease;
+  }
+
+  .stat { display: flex; justify-content: space-between; align-items: baseline;
+    padding: 9px 2px; border-bottom: 1px solid rgba(180,200,255,0.08); font-size: 14px; }
+  .stat:last-of-type { border-bottom: none; }
+  .stat .k { color: var(--ink-soft); }
+  .stat .v { color: var(--gold); font-size: 17px; font-weight: 300; }
+  .newbest { color: var(--gold); font-size: 12px; letter-spacing: 0.12em; margin-top: 6px; opacity: 0.9; }
+
+  .listening { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-top: 8px; }
+  .meter { width: 200px; height: 6px; border-radius: 4px; background: rgba(255,255,255,0.08); overflow: hidden; }
+  .meter > span { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, #6fb3c9, var(--gold)); transition: width 0.08s linear; }
+  .calib-step { color: var(--ink); font-size: 15px; min-height: 22px; }
+  @media (prefers-reduced-motion: reduce) { .screen { transition: opacity 0.2s; } }
+</style>
+</head>
+<body>
+<canvas id="world"></canvas>
+
+<div id="ui">
+  <!-- MENU -->
+  <div class="screen on" id="screen-menu">
+    <div class="panel">
+      <h1>The Lantern Tide</h1>
+      <p class="tagline">A village went dark when the sea swallowed its lanterns. Breathe, and let the tide of light come home.</p>
+
+      <div class="label">Journey</div>
+      <div class="chips" id="mode-chips">
+        <label class="chip sel" data-mode="arc"><input type="radio" name="mode" checked />Full Arc · dusk to dawn</label>
+      </div>
+      <div class="label">Or a single breath</div>
+      <div class="chips" id="pattern-chips">
+        <label class="chip" data-mode="coherent">Coherent 5·5</label>
+        <label class="chip" data-mode="box">Box 4·4·4·4</label>
+        <label class="chip" data-mode="relax478">Relaxing 4·7·8</label>
+      </div>
+
+      <div class="toggles">
+        <label class="toggle"><input type="checkbox" id="opt-mic" />Use my breath (mic)</label>
+        <label class="toggle"><input type="checkbox" id="opt-sound" checked />Sound</label>
+        <label class="toggle"><input type="checkbox" id="opt-motion" />Calm visuals</label>
+        <label class="toggle"><input type="checkbox" id="opt-safe" />Gentle holds</label>
+      </div>
+
+      <button class="btn" id="btn-begin">Begin</button>
+      <p class="note" id="returning"></p>
+      <p class="note">Hold <b>space</b> or press &amp; hold the screen as you breathe in — release as you breathe out. Or just watch and follow. There is no wrong way to breathe here. <a href="#" id="btn-why" class="clickable" style="color:var(--gold);text-decoration:none">Why &amp; safety</a></p>
+    </div>
+  </div>
+
+  <!-- INTRO (first run / revisited via "Why & safety") -->
+  <div class="screen" id="screen-intro">
+    <div class="panel">
+      <h1>Before you begin</h1>
+      <p class="tagline">Breathing slowly — around six breaths a minute — gently shifts you toward your body's “rest and calm” state, steadying your heart's rhythm and easing tension. That settling is what calls the tide of light home.</p>
+      <p class="note" style="text-align:left">Breathe softly and never strain. If you ever feel light-headed, return to normal breathing and rest. If you're pregnant or have a heart or breathing condition, keep the pauses short with <b>Gentle holds</b> below.</p>
+      <label class="toggle" style="justify-content:center;margin-top:16px"><input type="checkbox" id="opt-safe-intro" />Gentle holds (shorter pauses)</label>
+      <button class="btn" id="btn-intro">Continue</button>
+    </div>
+  </div>
+
+  <!-- CALIBRATION -->
+  <div class="screen" id="screen-calib">
+    <div class="panel">
+      <h1>Listening</h1>
+      <p class="tagline" id="calib-why">We'll listen to your breath through the microphone — nothing is recorded or sent anywhere. Two quiet moments to calibrate.</p>
+      <div class="listening">
+        <div class="calib-step" id="calib-step">Preparing…</div>
+        <div class="meter"><span id="calib-meter"></span></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn ghost" id="btn-skip-mic">Use touch instead</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div id="topbar">
+      <button class="icon-btn" id="btn-mute" title="Sound">♪</button>
+      <button class="icon-btn" id="btn-pause" title="Pause">❚❚</button>
+    </div>
+    <div id="phaseword" aria-live="polite">Breathe</div>
+    <div id="movename"></div>
+    <div id="hint">hold to breathe in · release to breathe out</div>
+    <div id="breaths"></div>
+  </div>
+
+  <!-- PAUSE -->
+  <div class="screen" id="screen-pause">
+    <div class="panel">
+      <h1>Paused</h1>
+      <p class="tagline">The tide waits for you.</p>
+      <div class="btn-row">
+        <button class="btn" id="btn-resume">Resume</button>
+        <button class="btn ghost" id="btn-finish">Finish</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- END -->
+  <div class="screen" id="screen-end">
+    <div class="panel">
+      <h1 id="end-title">Your Tide Tonight</h1>
+      <p class="tagline" id="end-copy">Dawn finds the bay full of light.</p>
+      <div id="end-stats"></div>
+      <div class="newbest" id="end-newbest" style="display:none">✦ a new longest calm</div>
+      <div class="btn-row">
+        <button class="btn" id="btn-again">Breathe again</button>
+        <button class="btn ghost" id="btn-tidepool">Rest in the tide pool</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ============================================================ CONFIG */
+  const CONFIG = {
+    orbMin: 0.34, orbMax: 1.0,
+    swellK: 2.6,                 // one-pole follow speed for water swell
+    calmGain: 0.34,              // calm rise per second at full sync
+    calmBleed: 0.14,            // calm fall per second when out of sync (gentle)
+    calmGoodThresh: 0.6,
+    followScore: 0.74,          // tier-1 follow-along baseline synchrony
+    cleanCycle: 0.62,           // avg sync to count a cycle toward the streak
+    maxLanterns: 26,
+    lanternCalmGate: 0.18,      // calm needed before a lantern can rise
+    particleCaps: { motes: 70, embers: 90, plankton: 80 },
+    micAttack: 0.06, micRelease: 0.30, micMargin: 0.35,
+    dprCap: 2,
+  };
+
+  const PATTERNS = {
+    coherent: { name: 'Coherent 5·5', phases: [ p('inhale',5), p('exhale',5) ] },
+    box:      { name: 'Box 4·4·4·4', phases: [ p('inhale',4), p('holdFull',4), p('exhale',4), p('holdEmpty',4) ] },
+    relax478: { name: 'Relaxing 4·7·8', phases: [ p('inhale',4), p('holdFull',7), p('exhale',8) ] },
+  };
+  function p(type, dur) { return { type, dur }; }
+
+  // Gentle mode shortens breath-holds (safety) without changing the pattern's identity.
+  function getPattern(key) {
+    const base = PATTERNS[key];
+    if (!Game.safeMode) return base;
+    const phases = base.phases.map(ph => (ph.type === 'holdFull' || ph.type === 'holdEmpty') ? { type: ph.type, dur: Math.min(ph.dur, 4) } : ph);
+    return { name: base.name, phases };
+  }
+
+  // Full-arc movements (escalating real techniques)
+  const ARC = [
+    { pattern: 'coherent', cycles: 6, name: 'Dusk' },
+    { pattern: 'box',      cycles: 6, name: 'Night' },
+    { pattern: 'relax478', cycles: 5, name: 'Dawn' },
+  ];
+
+  const PHASE_WORD = { inhale: 'Breathe in', holdFull: 'Hold', exhale: 'Breathe out', holdEmpty: 'Rest' };
+
+  /* ============================================================ UTIL */
+  const U = {
+    clamp: (v, a, b) => v < a ? a : v > b ? b : v,
+    lerp: (a, b, t) => a + (b - a) * t,
+    easeInOutSine: t => -(Math.cos(Math.PI * t) - 1) / 2,
+    easeOutCubic: t => 1 - Math.pow(1 - t, 3),
+    smooth: t => t * t * (3 - 2 * t),
+    rand: (a, b) => a + Math.random() * (b - a),
+    hex: h => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; },
+    mix: (c1, c2, t) => [U.lerp(c1[0], c2[0], t), U.lerp(c1[1], c2[1], t), U.lerp(c1[2], c2[2], t)],
+    rgba: (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`,
+  };
+
+  // critically-damped-ish spring (substepped so it's stable at any dt). c < 2*sqrt(k) => gentle overshoot.
+  function Spring(k, c) {
+    return {
+      x: 0, v: 0, k, c,
+      step(target, dt) {
+        let r = dt; const h = 1 / 120;
+        while (r > 0) { const s = r < h ? r : h; const a = -this.k * (this.x - target) - this.c * this.v; this.v += a * s; this.x += this.v * s; r -= s; }
+        return this.x;
+      },
+      set(x) { this.x = x; this.v = 0; },
+    };
+  }
+  // multi-stop colour ramp; stops = [[t, [r,g,b]], ...]
+  function ramp(stops, t) {
+    t = U.clamp(t, 0, 1);
+    for (let i = 0; i < stops.length - 1; i++) {
+      const a = stops[i], b = stops[i + 1];
+      if (t <= b[0]) { const k = (t - a[0]) / (b[0] - a[0] || 1); return U.mix(a[1], b[1], U.clamp(k, 0, 1)); }
+    }
+    return stops[stops.length - 1][1];
+  }
+
+  /* ============================================================ STORE */
+  const Store = {
+    get(k, d) { try { const v = localStorage.getItem('lt.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem('lt.' + k, JSON.stringify(v)); } catch (e) {} },
+  };
+
+  /* ============================================================ CLOCK */
+  const Clock = {
+    pattern: null, cycleDur: 1, anchorMs: 0,
+    phaseType: 'inhale', phaseIndex: 0, phaseElapsed: 0, phaseDur: 1, phaseProgress: 0,
+    cycleIndex: 0, fullness: 0, swell: 0, _lastPhase: null,
+    onCycle: null,
+
+    setPattern(key, now) {
+      this.pattern = getPattern(key);
+      this.cycleDur = this.pattern.phases.reduce((s, ph) => s + ph.dur, 0);
+      this.anchorMs = now;
+      this.cycleIndex = 0; this._lastPhase = null;
+    },
+    // re-anchor exactly at the boundary already crossed (clean pattern swap)
+    realign(now) { this.anchorMs = now; this.cycleIndex = 0; this._lastPhase = null; },
+
+    update(now, dt) {
+      const elapsed = (now - this.anchorMs) / 1000;
+      const ci = Math.floor(elapsed / this.cycleDur);
+      let tIn = elapsed - ci * this.cycleDur;
+      const phases = this.pattern.phases;
+      let acc = 0, idx = 0;
+      for (let i = 0; i < phases.length; i++) { if (tIn < acc + phases[i].dur) { idx = i; break; } acc += phases[i].dur; idx = i; }
+      this.phaseIndex = idx;
+      this.phaseType = phases[idx].type;
+      this.phaseDur = phases[idx].dur;
+      this.phaseElapsed = tIn - acc;
+      this.phaseProgress = U.clamp(this.phaseElapsed / this.phaseDur, 0, 1);
+
+      // guide fullness
+      const pp = this.phaseProgress;
+      let f = this.fullness;
+      if (this.phaseType === 'inhale') f = U.easeInOutSine(pp);
+      else if (this.phaseType === 'holdFull') f = 1;
+      else if (this.phaseType === 'exhale') f = 1 - U.easeInOutSine(pp);
+      else f = 0;
+      this.fullness = f;
+
+      // smoothed swell (water lags breath)
+      const k = U.clamp(dt * CONFIG.swellK, 0, 1);
+      this.swell += (f - this.swell) * k;
+
+      // cycle rollover
+      if (ci > this.cycleIndex) { this.cycleIndex = ci; if (this.onCycle) this.onCycle(); }
+      this._lastPhase = this.phaseType;
+    },
+  };
+
+  /* ============================================================ MIC (tier 3) */
+  const Mic = {
+    ok: false, env: 0, noiseFloor: 0.0015, exhaleRef: 0.02, thr: 0.01,
+    _ctx: null, _analyser: null, _buf: null, _stream: null,
+
+    async init(ctx) {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('no gum');
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+        });
+        this._stream = stream; this._ctx = ctx;
+        const src = ctx.createMediaStreamSource(stream);
+        const band = ctx.createBiquadFilter();
+        band.type = 'bandpass'; band.frequency.value = 350; band.Q.value = 0.7;
+        const an = ctx.createAnalyser();
+        an.fftSize = 1024; an.smoothingTimeConstant = 0.6;
+        src.connect(band); band.connect(an);   // never connected to destination → no feedback
+        this._analyser = an; this._buf = new Float32Array(an.fftSize);
+        this.ok = true; return true;
+      } catch (e) { this.ok = false; return false; }
+    },
+    sample() {
+      if (!this.ok) return 0;
+      this._analyser.getFloatTimeDomainData(this._buf);
+      let sum = 0; const b = this._buf;
+      for (let i = 0; i < b.length; i++) sum += b[i] * b[i];
+      return Math.sqrt(sum / b.length);
+    },
+    update(dt) {
+      if (!this.ok) return;
+      const raw = this.sample();
+      const k = raw > this.env ? CONFIG.micAttack : CONFIG.micRelease;
+      this.env += (raw - this.env) * U.clamp(dt / k, 0, 1);
+    },
+    stop() { try { if (this._stream) this._stream.getTracks().forEach(t => t.stop()); } catch (e) {} this.ok = false; },
+  };
+
+  /* ============================================================ INPUT (3-tier → one signal) */
+  const Input = {
+    source: 'follow',         // 'follow' | 'hold' | 'mic'
+    held: false, fullness: 0, _spring: null,
+    _toggleTimes: [], _lastHeld: false,
+
+    bind(canvas) {
+      this._spring = Spring(150, 20);
+      const down = e => { if (Game.state === 'playing') { if (e.cancelable) e.preventDefault(); this.setHeld(true); } };
+      const up = () => { if (Game.state === 'playing') this.setHeld(false); };
+      canvas.addEventListener('pointerdown', down);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('keydown', e => { if (e.code === 'Space' && !e.repeat) { if (Game.state === 'playing') e.preventDefault(); down(e); } if (e.code === 'Escape') Game.togglePause(); });
+      window.addEventListener('keyup', e => { if (e.code === 'Space') up(); });
+    },
+    setHeld(v) {
+      if (v === this.held) return;
+      this.held = v;
+      const now = performance.now();
+      this._toggleTimes.push(now);
+      if (this._toggleTimes.length > 12) this._toggleTimes.shift();
+      if (this.source === 'follow') this.source = 'hold';   // first real input promotes from follow
+    },
+    steadiness() {
+      const now = performance.now();
+      const recent = this._toggleTimes.filter(t => now - t < 1100).length;
+      return U.clamp(1 - Math.max(0, recent - 2) / 4, 0, 1);
+    },
+    reset(useMic) {
+      this.held = false; this._toggleTimes = [];
+      this.source = useMic && Mic.ok ? 'mic' : 'follow';
+      this.fullness = 0;
+      if (this._spring) { this._spring.set(0); this._spring.c = reduced ? 30 : 20; } // overdamped = no overshoot under reduced motion
+    },
+    update(dt) {
+      Mic.update(dt);
+      const guideFilling = Clock.phaseType === 'inhale' || Clock.phaseType === 'holdFull';
+      let target;
+      if (this.source === 'hold') {
+        target = this.held ? 1 : 0;
+      } else if (this.source === 'mic') {
+        // inhale/hold are silent → follow the guide; exhale → deflate as breath is detected
+        if (Clock.phaseType === 'exhale') target = Mic.env > Mic.thr ? 0 : 0.4;
+        else target = guideFilling ? 1 : 0;
+      } else {
+        target = Clock.fullness; // pure follow mirrors the guide
+      }
+      this.fullness = this._spring ? this._spring.step(target, dt)
+        : this.fullness + (target - this.fullness) * U.clamp(dt * 4.5, 0, 1);
+    },
+  };
+
+  /* ============================================================ SCORING */
+  const Scoring = {
+    breaths: 0, accSum: 0, accTime: 0, cycleSum: 0, cycleTime: 0,
+    streak: 0, best: 0, instant: 0,
+
+    reset() { this.breaths = 0; this.accSum = 0; this.accTime = 0; this.cycleSum = 0; this.cycleTime = 0; this.streak = 0; this.best = 0; this.instant = 0; },
+
+    sample(dt) {
+      const guideFilling = Clock.phaseType === 'inhale' || Clock.phaseType === 'holdFull';
+      let s;
+      if (Input.source === 'hold') {
+        const match = (Input.held === guideFilling) ? 1 : 0;
+        s = match * (0.55 + 0.45 * Input.steadiness());
+      } else if (Input.source === 'mic') {
+        if (Clock.phaseType === 'exhale') s = Mic.env > Mic.thr ? 1 : 0.15;
+        else s = 0.66;
+      } else {
+        s = CONFIG.followScore;
+      }
+      this.instant = s;
+      this.accSum += s * dt; this.accTime += dt;
+      this.cycleSum += s * dt; this.cycleTime += dt;
+      return s;
+    },
+    onCycle() {
+      this.breaths++;
+      const avg = this.cycleTime > 0 ? this.cycleSum / this.cycleTime : 0;
+      if (avg >= CONFIG.cleanCycle) { this.streak++; if (this.streak > this.best) this.best = this.streak; }
+      else this.streak = 0;
+      this.cycleSum = 0; this.cycleTime = 0;
+    },
+    accuracy() { return this.accTime > 0 ? this.accSum / this.accTime : 0; },
+  };
+
+  /* ============================================================ AUDIO (procedural) */
+  const Audio = {
+    ctx: null, master: null, ocean: null, oceanFilter: null, oceanGain: null,
+    pad: [], padFilter: null, padGain: null, conv: null, muted: false, on: true, started: false,
+    breath: null, breathFilter: null, breathGain: null, breathPan: null, binGain: null,
+
+    ensure() {
+      if (this.ctx) return;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) { this.on = false; return; }
+      this.ctx = new AC();
+      this.master = this.ctx.createGain(); this.master.gain.value = 0.0001;
+      const comp = this.ctx.createDynamicsCompressor();
+      this.master.connect(comp); comp.connect(this.ctx.destination);
+    },
+    start() {
+      this.ensure(); if (!this.ctx) return;
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      if (this.started) return; this.started = true;
+      const t = this.ctx.now ? this.ctx.now() : this.ctx.currentTime;
+
+      // reverb impulse (procedural)
+      const len = this.ctx.sampleRate * 2.4;
+      const imp = this.ctx.createBuffer(2, len, this.ctx.sampleRate);
+      for (let ch = 0; ch < 2; ch++) { const d = imp.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+      this.conv = this.ctx.createConvolver(); this.conv.buffer = imp;
+      const cg = this.ctx.createGain(); cg.gain.value = 0.5; this.conv.connect(cg); cg.connect(this.master);
+
+      // ambient pad (A minor pentatonic, low)
+      this.padFilter = this.ctx.createBiquadFilter(); this.padFilter.type = 'lowpass'; this.padFilter.frequency.value = 700; this.padFilter.Q.value = 0.4;
+      this.padFilter.connect(this.master);
+      const padGain = this.ctx.createGain(); padGain.gain.value = 0.0001; padGain.connect(this.padFilter);
+      this.padGain = padGain;
+      [110, 164.81, 220, 261.63, 329.63].forEach((f, i) => {
+        const o = this.ctx.createOscillator(); o.type = i < 2 ? 'sine' : 'triangle';
+        o.frequency.value = f; o.detune.value = (i - 2) * 4;
+        const g = this.ctx.createGain(); g.gain.value = (i < 2 ? 0.5 : 0.22);
+        o.connect(g); g.connect(padGain); o.start(t); this.pad.push(o);
+        // slow detune LFO
+        const lfo = this.ctx.createOscillator(); lfo.frequency.value = 0.03 + i * 0.011;
+        const lg = this.ctx.createGain(); lg.gain.value = 3.5; lfo.connect(lg); lg.connect(o.detune); lfo.start(t);
+      });
+      padGain.gain.setValueAtTime(0.0001, t); padGain.gain.linearRampToValueAtTime(0.16, t + 6);
+
+      // ocean noise bed
+      const nlen = this.ctx.sampleRate * 2; const nb = this.ctx.createBuffer(1, nlen, this.ctx.sampleRate);
+      const nd = nb.getChannelData(0); let last = 0;
+      for (let i = 0; i < nlen; i++) { const w = Math.random() * 2 - 1; last = (last + 0.02 * w) / 1.02; nd[i] = last * 3.2; }
+      this.ocean = this.ctx.createBufferSource(); this.ocean.buffer = nb; this.ocean.loop = true;
+      this.oceanFilter = this.ctx.createBiquadFilter(); this.oceanFilter.type = 'lowpass'; this.oceanFilter.frequency.value = 420;
+      this.oceanGain = this.ctx.createGain(); this.oceanGain.gain.value = 0.0001;
+      this.ocean.connect(this.oceanFilter); this.oceanFilter.connect(this.oceanGain); this.oceanGain.connect(this.master);
+      this.ocean.start(t); this.oceanGain.gain.linearRampToValueAtTime(0.18, t + 5);
+
+      // breath texture — rising "air" on inhale, a "surf wash" on exhale; phase-locked, for eyes-closed pacing
+      this.breath = this.ctx.createBufferSource(); this.breath.buffer = nb; this.breath.loop = true;
+      this.breathFilter = this.ctx.createBiquadFilter(); this.breathFilter.type = 'bandpass'; this.breathFilter.frequency.value = 500; this.breathFilter.Q.value = 0.5;
+      this.breathGain = this.ctx.createGain(); this.breathGain.gain.value = 0.0001;
+      this.breath.connect(this.breathFilter);
+      if (this.ctx.createStereoPanner) { this.breathPan = this.ctx.createStereoPanner(); this.breathFilter.connect(this.breathPan); this.breathPan.connect(this.breathGain); }
+      else this.breathFilter.connect(this.breathGain);
+      this.breathGain.connect(this.master); this.breath.start(t);
+
+      // gentle binaural beat (~6Hz), fades in only toward dawn
+      if (this.ctx.createStereoPanner) {
+        this.binGain = this.ctx.createGain(); this.binGain.gain.value = 0.0001; this.binGain.connect(this.master);
+        [[110, -1], [116, 1]].forEach(([f, pan]) => {
+          const o = this.ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+          const pn = this.ctx.createStereoPanner(); pn.pan.value = pan;
+          const g = this.ctx.createGain(); g.gain.value = 0.5;
+          o.connect(g); g.connect(pn); pn.connect(this.binGain); o.start(t);
+        });
+      }
+
+      this.applyMaster();
+    },
+    applyMaster() {
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime; const target = (this.on && !this.muted) ? 0.9 : 0.0001;
+      this.master.gain.setValueAtTime(Math.max(0.0001, this.master.gain.value), t);
+      this.master.gain.linearRampToValueAtTime(target, t + 0.4);
+    },
+    setMuted(m) { this.muted = m; this.applyMaster(); },
+    // ocean + breath texture track the breath; a real exhale (micEnv) audibly pushes the tide
+    tickBreath(swell, inhaleAmt, exhaleAmt, micEnv, colorTemp) {
+      if (!this.oceanFilter || this.muted || !this.on) return;
+      const t = this.ctx.currentTime;
+      this.oceanFilter.frequency.setTargetAtTime(280 + swell * 520 + micEnv * 220, t, 0.25);
+      this.oceanGain.gain.setTargetAtTime(0.10 + swell * 0.16 + micEnv * 0.12, t, 0.3);
+      if (this.breathFilter) {
+        const cut = inhaleAmt > 0 ? (500 + inhaleAmt * 1400) : (260 + 140 * exhaleAmt);
+        const gain = inhaleAmt > 0 ? (0.010 + inhaleAmt * 0.020) : (0.018 + exhaleAmt * 0.05 + micEnv * 0.06);
+        this.breathFilter.frequency.setTargetAtTime(cut, t, 0.2);
+        this.breathGain.gain.setTargetAtTime(gain, t, 0.2);
+        if (this.breathPan) this.breathPan.pan.setTargetAtTime(Math.sin(t * 0.25) * 0.4, t, 0.4);
+      }
+      if (this.binGain) this.binGain.gain.setTargetAtTime(0.0001 + colorTemp * 0.05, t, 1.5);
+    },
+    ding(n, pan) {
+      if (!this.ctx || !this.started || this.muted || !this.on) return;
+      const t = this.ctx.currentTime;
+      const penta = [0, 2, 4, 7, 9]; const oct = Math.min(2, Math.floor(n / 5));
+      const freq = 261.63 * Math.pow(2, penta[n % 5] / 12) * Math.pow(2, oct);
+      const g = this.ctx.createGain(); g.gain.value = 0.0001;
+      let out = g;
+      if (this.ctx.createStereoPanner) { const pn = this.ctx.createStereoPanner(); pn.pan.value = U.clamp(pan || 0, -1, 1); g.connect(pn); out = pn; }
+      out.connect(this.master); if (this.conv) out.connect(this.conv);
+      [0, 7].forEach((det, i) => {
+        const o = this.ctx.createOscillator(); o.type = i ? 'triangle' : 'sine';
+        o.frequency.value = freq; o.detune.value = det;
+        o.connect(g); o.start(t); o.stop(t + 3.2);
+      });
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.22, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 3.0);
+    },
+    warm(level) { // shift pad brightness as night → dawn
+      if (!this.padFilter) return;
+      this.padFilter.frequency.setTargetAtTime(640 + level * 900, this.ctx.currentTime, 1.5);
+    },
+  };
+
+  /* ============================================================ WORLD (sim state) */
+  const World = {
+    calm: 0, colorTemp: 0, mist: 1, lit: 0,
+    lanterns: [], stars: [], pools: { motes: [], embers: [], plankton: [] },
+    boat: { active: false, t: 0 }, crane: { active: false, phase: 'none', t: 0, x: 0, y: 0, ang: 0 },
+    rooftops: [],
+
+    seed() {
+      this.lanterns = []; const hues = [38, 30, 14, 168, 210, 46];
+      for (let i = 0; i < CONFIG.maxLanterns; i++) {
+        this.lanterns.push({ xn: U.rand(0.06, 0.94), yn: U.rand(0.58, 0.93), hue: hues[i % hues.length], lit: false, t: 0, flick: Math.random() * 6.28, bob: Math.random() * 6.28 });
+      }
+      this.lanterns.sort((a, b) => a.yn - b.yn); // far (high) first
+      this.stars = [];
+      for (let i = 0; i < 90; i++) this.stars.push({ xn: Math.random(), yn: U.rand(0.02, 0.5), r: U.rand(0.4, 1.4), ph: Math.random() * 6.28, sp: U.rand(0.6, 2) });
+      this.rooftops = [];
+      let x = 0.0; while (x < 1) { const w = U.rand(0.04, 0.09); const h = U.rand(0.02, 0.06); this.rooftops.push({ x, w, h, peak: Math.random() < 0.5 }); x += w + U.rand(0.005, 0.02); }
+      this.reset();
+    },
+    reset() {
+      this.calm = 0; this.colorTemp = 0; this.mist = 1; this.lit = 0;
+      this.lanterns.forEach(l => { l.lit = false; l.t = 0; });
+      this.pools.motes = []; this.pools.embers = []; this.pools.plankton = [];
+      this.boat = { active: false, t: 0 };
+      this.crane = { active: false, phase: 'none', t: 0, x: 0, y: 0, ang: 0 };
+    },
+    spawn(pool, o) { const arr = this.pools[pool]; if (arr.length < CONFIG.particleCaps[pool]) arr.push(o); },
+    lightNext() {
+      const l = this.lanterns.find(x => !x.lit);
+      if (!l) return;
+      l.lit = true; l.t = 0; this.lit++;
+      Audio.ding(this.lit - 1, l.xn * 2 - 1);   // pan the chime to the lantern's position
+      // ember burst on ignition
+      for (let i = 0; i < 10; i++) this.spawn('embers', { xn: l.xn, yn: l.yn, vx: U.rand(-0.014, 0.014), vy: U.rand(-0.06, -0.02), life: 1, max: U.rand(1.6, 3), hue: l.hue });
+    },
+  };
+
+  /* ============================================================ DIRECTOR (narrative scheduler) */
+  const Director = {
+    arc: false, mi: 0, cyclesInMove: 0, movements: ARC, ended: false,
+    milestones: {},
+
+    begin(arc) {
+      this.arc = arc; this.mi = 0; this.cyclesInMove = 0; this.ended = false;
+      this.milestones = { boat: false, crane: false };
+    },
+    progress() { // 0..1 overall for colour temperature
+      if (!this.arc) return U.clamp(World.calm * 0.6 + Math.min(1, World.lit / 14) * 0.4, 0, 1);
+      return U.clamp((this.mi + this.cyclesInMove / this.movements[this.mi].cycles) / this.movements.length, 0, 1);
+    },
+    onCycle(now) {
+      Scoring.onCycle();
+      // light lanterns generously when calm
+      if (World.calm > CONFIG.lanternCalmGate) {
+        World.lightNext();
+        if (World.calm > 0.7 && Math.random() < 0.6) setTimeout(() => { if (Game.state === 'playing' && !Game.paused) World.lightNext(); }, 150);
+      }
+      if (!this.arc) return;
+      this.cyclesInMove++;
+      const m = this.movements[this.mi];
+      if (this.cyclesInMove >= m.cycles) {
+        if (this.mi < this.movements.length - 1) {
+          this.mi++; this.cyclesInMove = 0;
+          // swap pattern cleanly at the boundary that just passed
+          Clock.setPattern(this.movements[this.mi].pattern, now);
+          const mn = document.getElementById('movename'); if (mn) mn.textContent = this.movements[this.mi].name;
+          if (this.mi === 1) { World.boat.active = true; this.milestones.boat = true; }
+          if (this.mi === 2) { World.crane.active = true; World.crane.phase = 'descend'; World.crane.t = 0; this.milestones.crane = true; }
+        } else {
+          this.finale();
+        }
+      }
+    },
+    finale() {
+      if (this.ended) return; this.ended = true;
+      if (World.crane.active) { World.crane.phase = 'land'; World.crane.t = 0; }
+      // light any remaining lanterns over the closing breaths happens via tick; trigger end after a beat
+      this._endAt = performance.now() + 6000;
+    },
+    update(now, dt) {
+      // colour temperature eases toward progress target
+      World.colorTemp += (this.progress() - World.colorTemp) * U.clamp(dt * 0.4, 0, 1);
+      Audio.warm(World.colorTemp);
+      // mist lifts with lanterns
+      const mtarget = U.clamp(1 - World.lit / 12, 0.12, 1);
+      World.mist += (mtarget - World.mist) * U.clamp(dt * 0.5, 0, 1);
+      // boat slide-in
+      if (World.boat.active && World.boat.t < 1) World.boat.t = U.clamp(World.boat.t + dt / 7, 0, 1);
+      // crane
+      const cr = World.crane;
+      if (cr.active) {
+        cr.t += dt;
+        if (cr.phase === 'descend' && cr.t > 5) { cr.phase = 'circle'; cr.t = 0; }
+      }
+      // finale end
+      if (this.ended && this._endAt && now > this._endAt) { this._endAt = null; Game.toEnd(true); }
+    },
+  };
+
+  /* ============================================================ RENDER */
+  let canvas, ctx, W = 0, H = 0, dpr = 1, lowEnd = false, reduced = false;
+  let grain = null;
+  const breathSpring = Spring(120, 18); let breathOrb = 0;   // subtle "fill and rest" settle on the guide orb
+
+  const SKY_TOP = [[0, U.hex('#16223f')], [0.5, U.hex('#070a16')], [1, U.hex('#2a1c34')]];
+  const SKY_BOT = [[0, U.hex('#244067')], [0.5, U.hex('#0c1626')], [1, U.hex('#7a4a52')]];
+  const HORIZON_GLOW = [[0, U.hex('#2c3f63')], [0.5, U.hex('#16243c')], [1, U.hex('#f0b070')]];
+  const WATER_DEEP = [[0, U.hex('#08111f')], [0.5, U.hex('#04080f')], [1, U.hex('#241726')]];
+
+  function resize() {
+    dpr = Math.min(CONFIG.dprCap, window.devicePixelRatio || 1);
+    if (lowEnd) dpr = 1;
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = Math.floor(W * dpr); canvas.height = Math.floor(H * dpr);
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function makeGrain() {
+    const g = document.createElement('canvas'); g.width = g.height = 128;
+    const gc = g.getContext('2d'); const id = gc.createImageData(128, 128);
+    for (let i = 0; i < id.data.length; i += 4) { const v = Math.random() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; }
+    gc.putImageData(id, 0, 0); grain = g;
+  }
+
+  const Render = {
+    frame(t, dt) {
+      const ct = World.colorTemp;
+      const horizon = H * 0.52;
+      breathOrb = breathSpring.step(Clock.fullness, dt);
+
+      // SKY
+      const sg = ctx.createLinearGradient(0, 0, 0, horizon);
+      sg.addColorStop(0, U.rgba(ramp(SKY_TOP, ct), 1));
+      sg.addColorStop(1, U.rgba(ramp(SKY_BOT, ct), 1));
+      ctx.fillStyle = sg; ctx.fillRect(0, 0, W, horizon);
+
+      // STARS (fade out toward dawn)
+      const starA = U.clamp(1 - ct * 1.3, 0, 1) * (reduced ? 0.5 : 1);
+      if (starA > 0.02) {
+        ctx.save();
+        for (const s of World.stars) {
+          const tw = reduced ? 0.8 : 0.55 + 0.45 * Math.sin(t * 0.001 * s.sp + s.ph);
+          ctx.fillStyle = U.rgba([255, 250, 235], starA * tw * 0.9);
+          ctx.beginPath(); ctx.arc(s.xn * W, s.yn * horizon, s.r, 0, 6.283); ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // HORIZON GLOW (dawn warmth)
+      const hg = ctx.createRadialGradient(W * 0.5, horizon, 10, W * 0.5, horizon, W * 0.7);
+      const gc = ramp(HORIZON_GLOW, ct);
+      hg.addColorStop(0, U.rgba(gc, 0.3 + ct * 0.5));
+      hg.addColorStop(1, U.rgba(gc, 0));
+      ctx.fillStyle = hg; ctx.fillRect(0, horizon - H * 0.4, W, H * 0.5);
+
+      // WATER
+      const wg = ctx.createLinearGradient(0, horizon, 0, H);
+      wg.addColorStop(0, U.rgba(ramp(SKY_BOT, ct), 0.85));
+      wg.addColorStop(1, U.rgba(ramp(WATER_DEEP, ct), 1));
+      ctx.fillStyle = wg; ctx.fillRect(0, horizon, W, H - horizon);
+
+      this.rooftops(horizon, ct);
+      this.water(t, horizon, ct);
+      this.plankton(dt);
+      this.lanterns(t, dt, horizon);
+      if (World.boat.active) this.boat(t, horizon, ct);
+      this.embers(dt);
+      this.motes(t, dt);
+      if (World.crane.active) this.crane(t, dt);
+      this.orb(t, horizon);
+      this.vignette();
+      if (!reduced && !lowEnd && grain) {
+        ctx.globalAlpha = 0.035; const ox = (Math.random() * 128) | 0, oy = (Math.random() * 128) | 0;
+        for (let x = -ox; x < W; x += 128) for (let y = -oy; y < H; y += 128) ctx.drawImage(grain, x, y);
+        ctx.globalAlpha = 1;
+      }
+    },
+
+    rooftops(horizon, ct) {
+      const a = U.clamp(1 - World.mist, 0, 1) * 0.9;
+      if (a < 0.03) return;
+      ctx.save(); ctx.fillStyle = U.rgba(U.mix([8, 12, 22], [40, 28, 36], ct), a);
+      const base = horizon + 2;
+      for (const r of World.rooftops) {
+        const x = r.x * W, w = r.w * W, h = r.h * H;
+        ctx.beginPath();
+        if (r.peak) { ctx.moveTo(x, base); ctx.lineTo(x + w / 2, base - h); ctx.lineTo(x + w, base); }
+        else { ctx.rect(x, base - h, w, h); }
+        ctx.fill();
+      }
+      ctx.restore();
+    },
+
+    water(t, horizon, ct) {
+      const tint = U.mix([90, 150, 200], [240, 180, 150], ct);
+      const bands = lowEnd ? 2 : 3;
+      for (let b = 0; b < bands; b++) {
+        const depth = (b + 1) / bands;
+        const yBase = horizon + depth * (H - horizon) * 0.9;
+        const amp = (2 + b * 3) * (0.5 + Clock.swell * 0.8) * (reduced ? 0.4 : 1);
+        ctx.beginPath(); ctx.moveTo(0, yBase);
+        for (let x = 0; x <= W; x += 10) {
+          const y = yBase + Math.sin(x * (0.008 + b * 0.004) + t * 0.0011 * (1 + b * 0.5)) * amp
+                          + Math.sin(x * 0.02 - t * 0.0007) * amp * 0.4;
+          ctx.lineTo(x, y);
+        }
+        ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+        ctx.fillStyle = U.rgba(tint, 0.05 + b * 0.03);
+        ctx.fill();
+      }
+    },
+
+    glow(x, y, r, color, a) {
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, U.rgba(color, a)); g.addColorStop(0.5, U.rgba(color, a * 0.4)); g.addColorStop(1, U.rgba(color, 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill();
+    },
+
+    lanterns(t, dt, horizon) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (const l of World.lanterns) {
+        if (!l.lit) continue;
+        if (l.t < 1) l.t = U.clamp(l.t + dt * 0.7, 0, 1);
+        const it = l.t;
+        const ease = U.easeOutCubic(it);
+        const bloom = reduced ? 0 : Math.exp(-Math.pow((it - 0.24) / 0.12, 2)); // bright flash partway through ignition
+        const x = l.xn * W;
+        const y = l.yn * H - (1 - ease) * 26;
+        const flick = reduced ? 1 : 0.86 + 0.14 * Math.sin(t * 0.004 + l.flick) + 0.05 * Math.sin(t * 0.013 + l.flick * 2);
+        const c = hsl(l.hue, 0.8, 0.62);
+        const scale = (0.5 + 0.5 * ease) * (1 + 0.4 * bloom);
+        const r = (26 + l.yn * 30) * scale;
+        this.glow(x, y, r * flick, c, U.clamp(0.45 * ease + 0.55 * bloom, 0, 1));
+        // core — flashes white-hot on the bloom beat, then settles
+        ctx.fillStyle = U.rgba(hsl(l.hue, 0.7 - 0.5 * bloom, U.clamp(0.84 + 0.16 * bloom, 0, 1)), U.clamp(0.85 * ease + 0.4 * bloom, 0, 1));
+        ctx.beginPath(); ctx.arc(x, y, (2.2 + 2.6 * bloom) * scale, 0, 6.283); ctx.fill();
+        // reflection on the water below (answers the bloom)
+        const wob = Math.sin(t * 0.003 + l.bob) * 3 * Clock.swell;
+        const refY = Math.max(horizon, y) + 22;
+        this.glow(x + wob, refY, r * 0.7 * flick, c, 0.16 * ease + 0.12 * bloom);
+      }
+      ctx.restore();
+    },
+
+    plankton(dt) {
+      const filling = Clock.fullness > Clock.swell; // inhaling
+      if (!reduced && filling && Math.random() < 0.4) World.spawn('plankton', { xn: Math.random(), y: H + 5, vy: U.rand(20, 50), life: 1, max: U.rand(2, 4) });
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const arr = World.pools.plankton;
+      for (let i = arr.length - 1; i >= 0; i--) {
+        const pk = arr[i]; pk.life -= dt / pk.max; pk.y -= pk.vy * dt;
+        if (pk.life <= 0 || pk.y < H * 0.5) { arr.splice(i, 1); continue; }
+        ctx.fillStyle = U.rgba([130, 220, 230], 0.4 * pk.life);
+        ctx.beginPath(); ctx.arc(pk.xn * W, pk.y, 1.3, 0, 6.283); ctx.fill();
+      }
+      ctx.restore();
+    },
+
+    embers(dt) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const arr = World.pools.embers;
+      for (let i = arr.length - 1; i >= 0; i--) {
+        const e = arr[i]; e.life -= dt / e.max; e.xn += e.vx * dt; e.yn += e.vy * dt;
+        if (e.life <= 0) { arr.splice(i, 1); continue; }
+        ctx.fillStyle = U.rgba(hsl(e.hue, 0.8, 0.7), 0.5 * e.life);
+        ctx.beginPath(); ctx.arc(e.xn * W, e.yn * H, 1.6 * e.life, 0, 6.283); ctx.fill();
+      }
+      ctx.restore();
+    },
+
+    motes(t, dt) {
+      if (World.pools.motes.length < CONFIG.particleCaps.motes && Math.random() < 0.3)
+        World.spawn('motes', { xn: Math.random(), yn: Math.random(), ph: Math.random() * 6.28, sp: U.rand(0.005, 0.02), life: 1, max: U.rand(8, 16) });
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const arr = World.pools.motes;
+      for (let i = arr.length - 1; i >= 0; i--) {
+        const m = arr[i]; m.life -= dt / m.max; m.yn -= m.sp * dt;
+        if (m.life <= 0 || m.yn < -0.02) { arr.splice(i, 1); continue; }
+        const x = (m.xn + Math.sin(t * 0.0004 + m.ph) * 0.02) * W;
+        ctx.fillStyle = U.rgba([200, 220, 255], 0.18 * Math.sin(m.life * Math.PI));
+        ctx.beginPath(); ctx.arc(x, m.yn * H, 1.1, 0, 6.283); ctx.fill();
+      }
+      ctx.restore();
+    },
+
+    boat(t, horizon, ct) {
+      const x = U.lerp(W * 1.1, W * 0.72, U.easeOutCubic(World.boat.t));
+      const y = horizon + 18 + Math.sin(t * 0.0014) * 3 * (1 + Clock.swell);
+      ctx.save();
+      ctx.fillStyle = U.rgba([8, 10, 18], 0.92);
+      ctx.beginPath(); ctx.moveTo(x - 26, y); ctx.quadraticCurveTo(x, y + 12, x + 26, y); ctx.lineTo(x + 20, y - 6); ctx.lineTo(x - 20, y - 6); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = U.rgba([20, 24, 34], 0.9); ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x, y - 30); ctx.stroke();
+      ctx.globalCompositeOperation = 'lighter';
+      this.glow(x, y - 30, 16, hsl(40, 0.8, 0.65), 0.6);
+      ctx.restore();
+    },
+
+    crane(t, dt) {
+      const cr = World.crane; let x, y, ang = 0, flap;
+      // path stays in the open upper sky so the crane reads clearly against it
+      if (cr.phase === 'descend') {
+        const k = U.clamp(cr.t / 5, 0, 1);
+        x = U.lerp(W * 0.12, W * 0.58, k); y = U.lerp(-50, H * 0.20, U.smooth(k)); ang = 0.18 * (1 - k);
+      } else if (cr.phase === 'circle') {
+        const a = cr.t * 0.5; x = W * 0.42 + Math.cos(a) * W * 0.16; y = H * 0.20 + Math.sin(a) * H * 0.05; ang = Math.cos(a) * 0.28;
+      } else { // land on the first lantern
+        const k = U.clamp(cr.t / 4, 0, 1); const target = World.lanterns.find(l => l.lit) || { xn: 0.5, yn: 0.6 };
+        x = U.lerp(W * 0.58, target.xn * W, U.smooth(k)); y = U.lerp(H * 0.20, target.yn * H - 30, U.smooth(k)); ang = 0.1 * (1 - k);
+      }
+      flap = cr.phase === 'land' && cr.t > 3.5 ? 0 : Math.sin(t * 0.008) * 0.6;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(1.35, 1.35);
+      const col = U.rgba([240, 244, 250], 0.92);
+      ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      // body
+      ctx.beginPath(); ctx.ellipse(0, 0, 12, 5, 0, 0, 6.283); ctx.fill();
+      // neck + head
+      ctx.beginPath(); ctx.moveTo(8, -2); ctx.quadraticCurveTo(18, -10, 22, -16); ctx.stroke();
+      ctx.beginPath(); ctx.arc(22, -17, 2.4, 0, 6.283); ctx.fill();
+      ctx.strokeStyle = U.rgba([240, 180, 120], 0.9); ctx.beginPath(); ctx.moveTo(24, -17); ctx.lineTo(29, -18); ctx.stroke();
+      ctx.strokeStyle = col;
+      // legs (tucked unless landing)
+      ctx.beginPath(); ctx.moveTo(-6, 4); ctx.lineTo(-14, 12 + (cr.phase === 'land' ? 6 : 0)); ctx.stroke();
+      // wings
+      const wy = -flap * 14;
+      ctx.beginPath(); ctx.moveTo(-2, -2); ctx.quadraticCurveTo(-16, -10 + wy, -28, -2 + wy * 0.5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-2, -2); ctx.quadraticCurveTo(10, -12 + wy, 20, -6 + wy * 0.5); ctx.stroke();
+      ctx.restore();
+    },
+
+    orb(t, horizon) {
+      const cx = W * 0.5, cy = horizon - Math.min(W, H) * 0.13;
+      const base = Math.min(W, H) * 0.12;
+      // mostly the accurate pacer, with a touch of spring so it "fills and rests" like lungs
+      const ff = reduced ? Clock.fullness : (Clock.fullness * 0.88 + breathOrb * 0.12);
+      const r = base * U.lerp(CONFIG.orbMin, CONFIG.orbMax, ff);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      // hue warms a touch with progress
+      const hue = U.lerp(200, 188, World.colorTemp);
+      const c = hsl(hue, 0.55, 0.7);
+      // outer breath glow
+      this.glow(cx, cy, r * 2.6, c, 0.10 + 0.10 * Clock.fullness);
+      this.glow(cx, cy, r * 1.35, c, 0.22);
+      // bell core
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0, U.rgba([255, 255, 255], 0.9));
+      g.addColorStop(0.4, U.rgba(c, 0.7));
+      g.addColorStop(1, U.rgba(c, 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.283); ctx.fill();
+      ctx.restore();
+
+      // player ring (your breath vs the guide) — wobbles when out of sync, stills as you match
+      ctx.save();
+      const jitter = reduced ? 0 : (1 - Scoring.instant) * 0.06 * Math.sin(t * 0.02);
+      const pr = base * U.lerp(CONFIG.orbMin, CONFIG.orbMax, U.clamp(Input.fullness, 0, 1.1)) * (1.18 + jitter);
+      ctx.strokeStyle = U.rgba([255, 240, 210], 0.28); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(cx, cy, pr, 0, 6.283); ctx.stroke();
+      ctx.restore();
+
+      // tentacles
+      if (!reduced) {
+        ctx.save(); ctx.strokeStyle = U.rgba(c, 0.25); ctx.lineWidth = 1.4; ctx.lineCap = 'round';
+        for (let i = 0; i < 5; i++) {
+          const a = (i / 4 - 0.5) * 0.8; const sx = cx + Math.sin(a) * r * 0.6; const sy = cy + r * 0.7;
+          ctx.beginPath(); ctx.moveTo(sx, sy);
+          const sway = Math.sin(t * 0.002 + i) * 10;
+          ctx.quadraticCurveTo(sx + sway, sy + r * 0.5, sx + sway * 0.5, sy + r * 1.1 + 10 * Clock.fullness);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    },
+
+    vignette() {
+      const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
+      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.55)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    },
+  };
+
+  function hsl(h, s, l) { // hsl → rgb array
+    s = U.clamp(s, 0, 1); l = U.clamp(l, 0, 1);
+    const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+    let r, g, b;
+    if (h < 60) [r, g, b] = [c, x, 0]; else if (h < 120) [r, g, b] = [x, c, 0];
+    else if (h < 180) [r, g, b] = [0, c, x]; else if (h < 240) [r, g, b] = [0, x, c];
+    else if (h < 300) [r, g, b] = [x, 0, c]; else [r, g, b] = [c, 0, x];
+    return [(r + m) * 255, (g + m) * 255, (b + m) * 255];
+  }
+
+  /* ============================================================ GAME (state + loop) */
+  const $ = id => document.getElementById(id);
+  const Game = {
+    state: 'menu', mode: 'arc', useMic: false, paused: false, safeMode: false,
+    last: 0, _probe: { n: 0, sum: 0, done: false },
+    _phaseEl: null, _lastWord: null,
+
+    boot() {
+      canvas = $('world'); ctx = canvas.getContext('2d');
+      reduced = matchMedia('(prefers-reduced-motion: reduce)').matches || Store.get('motion', false);
+      makeGrain(); resize(); World.seed();
+      window.addEventListener('resize', resize);
+      document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'playing' && !this.paused) this.togglePause(); });
+      Input.bind(canvas);
+      Clock.onCycle = () => { if (this.state === 'playing') Director.onCycle(performance.now()); };
+      this.safeMode = Store.get('safe', false);
+      Clock.setPattern('coherent', performance.now());
+      this.wireUI();
+      if (!Store.get('onboarded', false)) { this.state = 'intro'; this.screen('intro'); }
+      requestAnimationFrame(this.loop.bind(this));
+    },
+
+    wireUI() {
+      // menu selection
+      const allChips = [...document.querySelectorAll('#mode-chips .chip'), ...document.querySelectorAll('#pattern-chips .chip')];
+      allChips.forEach(ch => ch.addEventListener('click', () => {
+        allChips.forEach(c => c.classList.remove('sel')); ch.classList.add('sel'); this.mode = ch.dataset.mode;
+      }));
+      // restore prefs
+      $('opt-sound').checked = !Store.get('muted', false);
+      $('opt-motion').checked = reduced;
+      $('opt-safe').checked = this.safeMode;
+      const best = Store.get('best', 0);
+      if (best > 0) $('returning').textContent = `Welcome back — your longest calm was ${best} breath${best === 1 ? '' : 's'}.`;
+
+      $('opt-motion').addEventListener('change', e => { reduced = e.target.checked; Store.set('motion', reduced); resize(); });
+      $('opt-sound').addEventListener('change', e => { Audio.on = e.target.checked; Store.set('muted', !e.target.checked); Audio.applyMaster(); });
+      $('opt-safe').addEventListener('change', e => { this.safeMode = e.target.checked; Store.set('safe', this.safeMode); });
+
+      $('btn-why').addEventListener('click', e => { e.preventDefault(); $('opt-safe-intro').checked = this.safeMode; this.state = 'intro'; this.screen('intro'); });
+      $('btn-intro').addEventListener('click', () => {
+        this.safeMode = $('opt-safe-intro').checked; $('opt-safe').checked = this.safeMode;
+        Store.set('safe', this.safeMode); Store.set('onboarded', true);
+        this.state = 'menu'; this.screen('menu');
+      });
+      $('btn-begin').addEventListener('click', () => this.onBegin());
+      $('btn-skip-mic').addEventListener('click', () => { this.useMic = false; Mic.stop(); this.startPlaying(); });
+      $('btn-mute').addEventListener('click', () => { Audio.setMuted(!Audio.muted); $('btn-mute').style.opacity = Audio.muted ? 0.4 : 1; });
+      $('btn-pause').addEventListener('click', () => this.togglePause());
+      $('btn-resume').addEventListener('click', () => this.togglePause());
+      $('btn-finish').addEventListener('click', () => { this.paused = false; this.toEnd(false); });
+      $('btn-again').addEventListener('click', () => this.toMenu());
+      $('btn-tidepool').addEventListener('click', () => this.toTidepool());
+      this._phaseEl = $('phaseword');
+    },
+
+    screen(name) {
+      ['menu', 'intro', 'calib', 'pause', 'end'].forEach(s => $('screen-' + s).classList.toggle('on', s === name));
+      $('hud').classList.toggle('on', name === 'hud');
+    },
+
+    async onBegin() {
+      Audio.on = $('opt-sound').checked;
+      Audio.start();
+      this.useMic = $('opt-mic').checked;
+      if (this.useMic) {
+        this.state = 'calib'; this.screen('calib');
+        const ok = await Mic.init(Audio.ctx);
+        if (!ok) { $('calib-step').textContent = 'No microphone available — using touch instead.'; setTimeout(() => this.startPlaying(), 1500); return; }
+        this.runCalibration();
+      } else { this.startPlaying(); }
+    },
+
+    runCalibration() {
+      const stepEl = $('calib-step'), meterEl = $('calib-meter');
+      let phase = 0, t0 = performance.now(), floor = 0, ref = 0, n = 0;
+      stepEl.textContent = 'Sit quietly for a moment…';
+      const tick = () => {
+        if (this.state !== 'calib') return;
+        Mic.update(0.016);
+        const e = Mic.env; meterEl.style.width = U.clamp(e / 0.05 * 100, 0, 100) + '%';
+        const dt = performance.now() - t0;
+        if (phase === 0) {
+          floor = Math.max(floor, e);
+          if (dt > 2800) { phase = 1; t0 = performance.now(); stepEl.textContent = 'Now breathe out slowly, toward the screen…'; }
+        } else if (phase === 1) {
+          ref += e; n++;
+          if (dt > 3200) {
+            ref = n > 0 ? ref / n : 0.02;
+            Mic.noiseFloor = floor; Mic.exhaleRef = Math.max(ref, floor + 0.004);
+            Mic.thr = Mic.noiseFloor + CONFIG.micMargin * (Mic.exhaleRef - Mic.noiseFloor);
+            if (Mic.exhaleRef - Mic.noiseFloor < 0.003) { // garbage → fall back
+              stepEl.textContent = "Couldn't hear a clear breath — using touch instead.";
+              this.useMic = false; Mic.stop(); setTimeout(() => this.startPlaying(), 1400); return;
+            }
+            stepEl.textContent = 'Ready.'; setTimeout(() => this.startPlaying(), 700); return;
+          }
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    },
+
+    startPlaying() {
+      const now = performance.now();
+      const arc = this.mode === 'arc';
+      World.reset(); Scoring.reset(); Input.reset(this.useMic);
+      Director.begin(arc);
+      Clock.setPattern(arc ? ARC[0].pattern : this.mode, now);
+      this.state = 'playing'; this.paused = false; this.screen('hud');
+      $('hint').style.opacity = this.useMic ? '0' : '1';
+      $('movename').textContent = arc ? ARC[0].name : PATTERNS[this.mode].name;
+      setTimeout(() => { $('hint').style.opacity = '0'; }, 9000);
+    },
+
+    togglePause() {
+      if (this.state !== 'playing') return;
+      this.paused = !this.paused;
+      this.screen(this.paused ? 'pause' : 'hud');
+      if (this.paused) this._pauseAt = performance.now();
+      else { Clock.anchorMs += performance.now() - this._pauseAt; } // resume mid-breath
+    },
+
+    toEnd(finale) {
+      this.state = 'end'; this.screen('end');
+      const best = Store.get('best', 0);
+      const isBest = Scoring.best > best;
+      if (isBest) Store.set('best', Scoring.best);
+      Store.set('sessions', Store.get('sessions', 0) + 1);
+      $('end-title').textContent = finale ? 'Dawn' : 'Your Tide Tonight';
+      $('end-copy').textContent = finale
+        ? 'The crane is home, and the whole bay glows. Rest here as long as you like.'
+        : 'The tide settles. The lights you raised remain.';
+      $('end-stats').innerHTML =
+        stat('Breaths', Scoring.breaths) +
+        stat('Lanterns lit', World.lit) +
+        stat('Longest calm', Scoring.best + ' breath' + (Scoring.best === 1 ? '' : 's')) +
+        stat('Steadiness', Math.round(Scoring.accuracy() * 100) + '%');
+      $('end-newbest').style.display = isBest && Scoring.best > 0 ? 'block' : 'none';
+    },
+
+    toMenu() { this.state = 'menu'; this.screen('menu'); Mic.stop(); World.reset(); Clock.setPattern('coherent', performance.now()); },
+    toTidepool() {
+      this.state = 'playing'; this.paused = false; this.screen('hud');
+      Director.begin(false); Director.ended = false;
+      Clock.setPattern('coherent', performance.now());
+      Input.reset(this.useMic); $('movename').textContent = 'Tide pool';
+      $('hint').style.opacity = '0';
+    },
+
+    _audioBreath() {
+      const ph = Clock.phaseType;
+      const inhaleAmt = ph === 'inhale' ? Clock.phaseProgress : (ph === 'holdFull' ? 1 : 0);
+      const exhaleAmt = ph === 'exhale' ? Clock.phaseProgress : (ph === 'holdEmpty' ? 1 : 0);
+      const micEnv = (Input.source === 'mic' && Mic.ok) ? U.clamp((Mic.env - Mic.thr) / (Mic.exhaleRef - Mic.thr + 1e-4), 0, 1) : 0;
+      Audio.tickBreath(Clock.swell, inhaleAmt, exhaleAmt, micEnv, World.colorTemp);
+    },
+
+    setWord() {
+      const w = PHASE_WORD[Clock.phaseType];
+      if (w !== this._lastWord) {
+        this._lastWord = w; this._phaseEl.style.opacity = '0';
+        setTimeout(() => { this._phaseEl.textContent = w; this._phaseEl.style.opacity = '0.85'; }, 220);
+      }
+      $('breaths').textContent = Scoring.breaths > 0 ? Scoring.breaths + ' breaths · ' + World.lit + ' lanterns' : '';
+    },
+
+    loop(t) {
+      let dt = (t - this.last) / 1000; if (!isFinite(dt) || dt > 0.05) dt = 0.05; this.last = t;
+
+      // startup FPS probe → low-end mode
+      if (!this._probe.done) {
+        this._probe.n++; this._probe.sum += dt;
+        if (this._probe.n === 80) { this._probe.done = true; if (this._probe.sum / 80 > 0.022 && !reduced) { lowEnd = true; resize(); } }
+      }
+
+      if (this.state === 'playing' && !this.paused) {
+        Clock.update(t, dt);
+        Input.update(dt);
+        const s = Scoring.sample(dt);
+        // calm-tide meter
+        if (s > CONFIG.calmGoodThresh) World.calm = U.clamp(World.calm + CONFIG.calmGain * dt * s, 0, 1);
+        else World.calm = U.clamp(World.calm - CONFIG.calmBleed * dt * (1 - s), 0, 1);
+        Director.update(t, dt);
+        this._audioBreath();
+        this.setWord();
+      } else if (this.state !== 'playing') {
+        // ambient breathing on menu / end screens (paused = render only, no sim advance)
+        Clock.update(t, dt);
+        Director.update(t, dt);
+        this._audioBreath();
+      }
+
+      Render.frame(t, dt);
+      requestAnimationFrame(this.loop.bind(this));
+    },
+  };
+  function stat(k, v) { return `<div class="stat"><span class="k">${k}</span><span class="v">${v}</span></div>`; }
+
+  Game.boot();
+})();
+</script>
+</body>
+</html>
