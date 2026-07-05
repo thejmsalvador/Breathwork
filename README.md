@@ -7,6 +7,10 @@ a steady rhythm, a lost crane finds its way home at first light.
 There is no failure and no timer pressure: drifting off-pace only slows the tide,
 never punishes you.
 
+The app is designed as *dawn shell, night journey*: the menu and end screens are a
+light, luminous green "aura" (the menu's halo breathes at six breaths a minute), and
+pressing Begin carries you into the night bay — dawn is where you land when you finish.
+
 ## Play it
 
 Just open **`index.html`** in any modern browser — no backend, no build step, no
