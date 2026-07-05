@@ -2,17 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#05070f" />
 <title>The Lantern Tide</title>
 <style>
   :root {
-    --ink: #e9ecf5;
-    --ink-soft: rgba(233, 236, 245, 0.7);
-    --ink-faint: rgba(233, 236, 245, 0.42);
-    --gold: #f4c98a;
-    --panel: rgba(10, 16, 30, 0.72);
-    --border: rgba(180, 200, 255, 0.16);
+    --ink: #eaf0e6;
+    --ink-soft: rgba(234, 240, 230, 0.7);
+    --ink-faint: rgba(234, 240, 230, 0.45);
+    --accent: #b5c9a3;        /* sage green */
+    --accent-deep: #7f9870;
+    --panel: rgba(12, 18, 15, 0.74);
+    --border: rgba(186, 208, 178, 0.18);
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -62,22 +63,22 @@
     padding: 8px 14px; font-size: 13px; color: var(--ink-soft);
     cursor: pointer; transition: all 0.2s ease; user-select: none;
   }
-  label.chip:hover { border-color: rgba(244,201,138,0.5); color: var(--ink); }
-  label.chip.sel { background: rgba(244,201,138,0.14); border-color: var(--gold); color: var(--gold); }
+  label.chip:hover { border-color: rgba(181,201,163,0.5); color: var(--ink); }
+  label.chip.sel { background: rgba(181,201,163,0.14); border-color: var(--accent); color: var(--accent); }
   label.chip input { display: none; }
 
   .toggles { display: flex; gap: 18px; justify-content: center; margin-top: 18px; }
   .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; user-select: none; }
-  .toggle input { accent-color: var(--gold); width: 15px; height: 15px; }
+  .toggle input { accent-color: var(--accent); width: 15px; height: 15px; }
 
   .btn {
-    margin-top: 26px; border: 1px solid rgba(244,201,138,0.55);
-    background: rgba(244,201,138,0.10); color: var(--gold);
+    margin-top: 26px; border: 1px solid rgba(181,201,163,0.55);
+    background: rgba(181,201,163,0.10); color: var(--accent);
     font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 400;
     padding: 13px 36px; border-radius: 999px; cursor: pointer;
     transition: all 0.25s ease;
   }
-  .btn:hover { background: rgba(244,201,138,0.20); box-shadow: 0 0 26px rgba(244,201,138,0.25); }
+  .btn:hover { background: rgba(181,201,163,0.20); box-shadow: 0 0 26px rgba(181,201,163,0.25); }
   .btn.ghost { border-color: var(--border); color: var(--ink-soft); background: transparent; }
   .btn.ghost:hover { color: var(--ink); border-color: var(--ink-faint); box-shadow: none; }
   .btn-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
@@ -86,10 +87,10 @@
   /* HUD */
   #hud { position: absolute; inset: 0; opacity: 0; transition: opacity 0.8s ease; }
   #hud.on { opacity: 1; }
-  #topbar { position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; }
+  #topbar { position: absolute; top: calc(16px + env(safe-area-inset-top, 0px)); right: calc(16px + env(safe-area-inset-right, 0px)); display: flex; gap: 8px; }
   .icon-btn {
     pointer-events: auto; width: 38px; height: 38px; border-radius: 50%;
-    border: 1px solid var(--border); background: rgba(10,16,30,0.5);
+    border: 1px solid var(--border); background: rgba(12,18,15,0.55);
     color: var(--ink-soft); font-size: 15px; cursor: pointer; line-height: 1;
     display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
   }
@@ -101,7 +102,7 @@
     text-align: center; pointer-events: none;
     font-weight: 200; letter-spacing: 0.42em; text-transform: uppercase;
     font-size: clamp(15px, 3.4vw, 20px); color: rgba(255,255,255,0.55);
-    text-shadow: 0 0 18px rgba(180,210,255,0.35);
+    text-shadow: 0 0 18px rgba(196,220,186,0.4);
     transition: opacity 0.5s ease; padding-left: 0.42em;
   }
   #movename {
@@ -110,27 +111,31 @@
     font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase;
   }
   #breaths {
-    position: absolute; left: 0; right: 0; bottom: 26px; text-align: center;
+    position: absolute; left: 0; right: 0; bottom: calc(26px + env(safe-area-inset-bottom, 0px)); text-align: center;
     color: var(--ink-faint); font-size: 12px; letter-spacing: 0.16em;
     transition: opacity 0.8s ease;
   }
   #hint {
-    position: absolute; left: 0; right: 0; bottom: 52px; text-align: center;
+    position: absolute; left: 0; right: 0; bottom: calc(52px + env(safe-area-inset-bottom, 0px)); text-align: center;
     color: var(--ink-faint); font-size: 12px; letter-spacing: 0.05em;
     transition: opacity 1.2s ease;
   }
 
   .stat { display: flex; justify-content: space-between; align-items: baseline;
-    padding: 9px 2px; border-bottom: 1px solid rgba(180,200,255,0.08); font-size: 14px; }
+    padding: 9px 2px; border-bottom: 1px solid rgba(186,208,178,0.1); font-size: 14px; }
   .stat:last-of-type { border-bottom: none; }
   .stat .k { color: var(--ink-soft); }
-  .stat .v { color: var(--gold); font-size: 17px; font-weight: 300; }
-  .newbest { color: var(--gold); font-size: 12px; letter-spacing: 0.12em; margin-top: 6px; opacity: 0.9; }
+  .stat .v { color: var(--accent); font-size: 17px; font-weight: 300; }
+  .newbest { color: var(--accent); font-size: 12px; letter-spacing: 0.12em; margin-top: 6px; opacity: 0.9; }
 
   .listening { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-top: 8px; }
   .meter { width: 200px; height: 6px; border-radius: 4px; background: rgba(255,255,255,0.08); overflow: hidden; }
-  .meter > span { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, #6fb3c9, var(--gold)); transition: width 0.08s linear; }
+  .meter > span { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent-deep), var(--accent)); transition: width 0.08s linear; }
   .calib-step { color: var(--ink); font-size: 15px; min-height: 22px; }
+
+  .btn:focus-visible, .icon-btn:focus-visible, label.chip:focus-visible, a.clickable:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
   @media (prefers-reduced-motion: reduce) { .screen { transition: opacity 0.2s; } }
 </style>
 </head>
@@ -145,11 +150,11 @@
       <p class="tagline">A village went dark when the sea swallowed its lanterns. Breathe, and let the tide of light come home.</p>
 
       <div class="label">Journey</div>
-      <div class="chips" id="mode-chips">
+      <div class="chips" id="mode-chips" role="radiogroup" aria-label="Journey">
         <label class="chip sel" data-mode="arc"><input type="radio" name="mode" checked />Full Arc · dusk to dawn</label>
       </div>
       <div class="label">Or a single breath</div>
-      <div class="chips" id="pattern-chips">
+      <div class="chips" id="pattern-chips" role="radiogroup" aria-label="Single breath pattern">
         <label class="chip" data-mode="coherent">Coherent 5·5</label>
         <label class="chip" data-mode="box">Box 4·4·4·4</label>
         <label class="chip" data-mode="relax478">Relaxing 4·7·8</label>
@@ -164,7 +169,7 @@
 
       <button class="btn" id="btn-begin">Begin</button>
       <p class="note" id="returning"></p>
-      <p class="note">Hold <b>space</b> or press &amp; hold the screen as you breathe in — release as you breathe out. Or just watch and follow. There is no wrong way to breathe here. <a href="#" id="btn-why" class="clickable" style="color:var(--gold);text-decoration:none">Why &amp; safety</a></p>
+      <p class="note">Hold <b>space</b> or press &amp; hold the screen as you breathe in — release as you breathe out. Or just watch and follow. There is no wrong way to breathe here. <a href="#" id="btn-why" class="clickable" style="color:var(--accent);text-decoration:none">Why &amp; safety</a></p>
     </div>
   </div>
 
@@ -197,8 +202,8 @@
   <!-- HUD -->
   <div id="hud">
     <div id="topbar">
-      <button class="icon-btn" id="btn-mute" title="Sound">♪</button>
-      <button class="icon-btn" id="btn-pause" title="Pause">❚❚</button>
+      <button class="icon-btn" id="btn-mute" title="Sound" aria-label="Mute sound" aria-pressed="false">♪</button>
+      <button class="icon-btn" id="btn-pause" title="Pause" aria-label="Pause">❚❚</button>
     </div>
     <div id="phaseword" aria-live="polite">Breathe</div>
     <div id="movename"></div>
@@ -865,7 +870,7 @@
       for (let i = arr.length - 1; i >= 0; i--) {
         const pk = arr[i]; pk.life -= dt / pk.max; pk.y -= pk.vy * dt;
         if (pk.life <= 0 || pk.y < H * 0.5) { arr.splice(i, 1); continue; }
-        ctx.fillStyle = U.rgba([130, 220, 230], 0.4 * pk.life);
+        ctx.fillStyle = U.rgba([156, 224, 186], 0.4 * pk.life);
         ctx.beginPath(); ctx.arc(pk.xn * W, pk.y, 1.3, 0, 6.283); ctx.fill();
       }
       ctx.restore();
@@ -950,9 +955,9 @@
       const ff = reduced ? Clock.fullness : (Clock.fullness * 0.88 + breathOrb * 0.12);
       const r = base * U.lerp(CONFIG.orbMin, CONFIG.orbMax, ff);
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      // hue warms a touch with progress
-      const hue = U.lerp(200, 188, World.colorTemp);
-      const c = hsl(hue, 0.55, 0.7);
+      // soft seafoam-sage glow, warming a touch with progress (ties the orb to the UI accent)
+      const hue = U.lerp(152, 140, World.colorTemp);
+      const c = hsl(hue, 0.52, 0.66);
       // outer breath glow
       this.glow(cx, cy, r * 2.6, c, 0.10 + 0.10 * Clock.fullness);
       this.glow(cx, cy, r * 1.35, c, 0.22);
@@ -968,7 +973,7 @@
       ctx.save();
       const jitter = reduced ? 0 : (1 - Scoring.instant) * 0.06 * Math.sin(t * 0.02);
       const pr = base * U.lerp(CONFIG.orbMin, CONFIG.orbMax, U.clamp(Input.fullness, 0, 1.1)) * (1.18 + jitter);
-      ctx.strokeStyle = U.rgba([255, 240, 210], 0.28); ctx.lineWidth = 1.5;
+      ctx.strokeStyle = U.rgba([226, 238, 220], 0.3); ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.arc(cx, cy, pr, 0, 6.283); ctx.stroke();
       ctx.restore();
 
@@ -1028,15 +1033,23 @@
     wireUI() {
       // menu selection
       const allChips = [...document.querySelectorAll('#mode-chips .chip'), ...document.querySelectorAll('#pattern-chips .chip')];
-      allChips.forEach(ch => ch.addEventListener('click', () => {
-        allChips.forEach(c => c.classList.remove('sel')); ch.classList.add('sel'); this.mode = ch.dataset.mode;
-      }));
+      allChips.forEach(ch => {
+        ch.tabIndex = 0; ch.setAttribute('role', 'radio');
+        ch.setAttribute('aria-checked', ch.classList.contains('sel') ? 'true' : 'false');
+        const select = () => {
+          allChips.forEach(c => { c.classList.remove('sel'); c.setAttribute('aria-checked', 'false'); });
+          ch.classList.add('sel'); ch.setAttribute('aria-checked', 'true'); this.mode = ch.dataset.mode;
+        };
+        ch.addEventListener('click', select);
+        ch.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); select(); } });
+      });
       // restore prefs
       $('opt-sound').checked = !Store.get('muted', false);
       $('opt-motion').checked = reduced;
       $('opt-safe').checked = this.safeMode;
       const best = Store.get('best', 0);
-      if (best > 0) $('returning').textContent = `Welcome back — your longest calm was ${best} breath${best === 1 ? '' : 's'}.`;
+      const sessions = Store.get('sessions', 0);
+      if (best > 0) $('returning').textContent = `Welcome back — your longest calm was ${best} breath${best === 1 ? '' : 's'}${sessions > 1 ? ` across ${sessions} tides` : ''}.`;
 
       $('opt-motion').addEventListener('change', e => { reduced = e.target.checked; Store.set('motion', reduced); resize(); });
       $('opt-sound').addEventListener('change', e => { Audio.on = e.target.checked; Store.set('muted', !e.target.checked); Audio.applyMaster(); });
@@ -1050,7 +1063,13 @@
       });
       $('btn-begin').addEventListener('click', () => this.onBegin());
       $('btn-skip-mic').addEventListener('click', () => { this.useMic = false; Mic.stop(); this.startPlaying(); });
-      $('btn-mute').addEventListener('click', () => { Audio.setMuted(!Audio.muted); $('btn-mute').style.opacity = Audio.muted ? 0.4 : 1; });
+      $('btn-mute').addEventListener('click', () => {
+        Audio.setMuted(!Audio.muted);
+        const b = $('btn-mute');
+        b.style.opacity = Audio.muted ? 0.4 : 1;
+        b.setAttribute('aria-pressed', String(Audio.muted));
+        b.setAttribute('aria-label', Audio.muted ? 'Unmute sound' : 'Mute sound');
+      });
       $('btn-pause').addEventListener('click', () => this.togglePause());
       $('btn-resume').addEventListener('click', () => this.togglePause());
       $('btn-finish').addEventListener('click', () => { this.paused = false; this.toEnd(false); });
