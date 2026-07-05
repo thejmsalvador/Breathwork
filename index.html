@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<meta name="theme-color" content="#05070f" />
+<meta name="theme-color" content="#e8f4c2" />
 <title>The Lantern Tide</title>
 <style>
   :root {
@@ -67,8 +67,8 @@
   label.chip.sel { background: rgba(181,201,163,0.14); border-color: var(--accent); color: var(--accent); }
   label.chip input { display: none; }
 
-  .toggles { display: flex; gap: 18px; justify-content: center; margin-top: 18px; }
-  .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; user-select: none; }
+  .toggles { display: flex; flex-wrap: wrap; gap: 10px 18px; justify-content: center; margin-top: 18px; }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; user-select: none; white-space: nowrap; }
   .toggle input { accent-color: var(--accent); width: 15px; height: 15px; }
 
   .btn {
@@ -136,7 +136,108 @@
   .btn:focus-visible, .icon-btn:focus-visible, label.chip:focus-visible, a.clickable:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
-  @media (prefers-reduced-motion: reduce) { .screen { transition: opacity 0.2s; } }
+  a.clickable { color: var(--accent); text-decoration: none; }
+
+  /* ---------- Aura shell — light screens (menu · intro · calibration · end) ----------
+     A luminous chartreuse aura on paper, grain-textured, with deep leaf-green ink.
+     The frame of the app is dawn; the session itself is the night. */
+  .screen.light {
+    --leaf: #2c5424;
+    --leaf-soft: rgba(44, 84, 36, 0.74);
+    --leaf-faint: rgba(44, 84, 36, 0.55);
+    color: var(--leaf);
+    background:
+      radial-gradient(circle at 50% 42%,
+        rgba(255,255,255,0.98) 0%,
+        #f4fad2 18%,
+        #dff29e 38%,
+        #b4e070 62%,
+        #93cc48 86%,
+        #85c23c 100%);
+    overflow-y: auto; touch-action: pan-y;
+  }
+  #screen-end.light {
+    background:
+      radial-gradient(circle at 50% 40%,
+        #ffd98d 0%,
+        #fce9a8 18%,
+        #f6f3ae 36%,
+        #d9ee90 58%,
+        #abd85e 82%,
+        #90c944 100%);
+  }
+  .screen.light::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 3;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter><rect width="140" height="140" filter="url(%23n)"/></svg>');
+    opacity: 0.13; mix-blend-mode: multiply;
+  }
+  .screen.light .panel {
+    background: transparent; border: none; box-shadow: none;
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+    max-width: 520px; margin: auto; padding: 18px 20px;
+  }
+  .screen.light h1 { color: var(--leaf); font-weight: 600; letter-spacing: 0.1em; }
+  .screen.light .tagline { color: rgba(44, 84, 36, 0.88); }
+  .screen.light .label { color: var(--leaf-faint); }
+  .screen.light .note { color: var(--leaf-faint); }
+  .screen.light .note b { color: var(--leaf); }
+  .screen.light a.clickable { color: var(--leaf); text-decoration: underline; }
+  .screen.light label.chip { border-color: rgba(44,84,36,0.32); color: var(--leaf-soft); background: rgba(255,255,255,0.3); }
+  .screen.light label.chip:hover { border-color: var(--leaf); color: var(--leaf); }
+  .screen.light label.chip.sel { background: var(--leaf); border-color: var(--leaf); color: #f2f8dc; }
+  .screen.light .toggle { color: var(--leaf-soft); }
+  .screen.light .toggle input { accent-color: var(--leaf); }
+  .screen.light .btn { background: var(--leaf); border-color: var(--leaf); color: #f2f8dc; }
+  .screen.light .btn:hover { background: #234519; box-shadow: 0 8px 28px rgba(44,84,36,0.3); }
+  .screen.light .btn.ghost { background: transparent; color: var(--leaf); border-color: rgba(44,84,36,0.4); }
+  .screen.light .btn.ghost:hover { color: var(--leaf); border-color: var(--leaf); box-shadow: none; }
+  .screen.light .btn:focus-visible, .screen.light label.chip:focus-visible, .screen.light a.clickable:focus-visible { outline-color: var(--leaf); }
+  .screen.light .stat { border-bottom-color: rgba(44,84,36,0.16); }
+  .screen.light .stat .k { color: var(--leaf-soft); }
+  .screen.light .stat .v { color: var(--leaf); font-weight: 500; }
+  .screen.light .newbest { color: #a06e10; }
+  .screen.light .meter { background: rgba(44,84,36,0.14); }
+  .screen.light .meter > span { background: linear-gradient(90deg, #8cc63f, var(--leaf)); }
+  .screen.light .calib-step { color: var(--leaf); }
+
+  /* the breathing aura — pulses at 6 breaths/min (10 s), pacing you before you begin */
+  /* keep the aura glow below the text it drifts behind */
+  .screen.light .panel > * { position: relative; z-index: 1; }
+  .aura-wrap {
+    position: relative; z-index: 0; margin: 14px auto 8px;
+    width: clamp(168px, 34vmin, 240px); height: clamp(168px, 34vmin, 240px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .aura {
+    position: absolute; inset: -40%; border-radius: 50%; pointer-events: none;
+    background:
+      radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 30%),
+      radial-gradient(circle, rgba(246,251,205,0.95) 16%, rgba(196,232,126,0.6) 38%, rgba(196,232,126,0) 58%),
+      radial-gradient(circle, rgba(150,206,80,0) 50%, rgba(150,206,80,0.5) 62%, rgba(150,206,80,0) 76%);
+    animation: aurabreathe 10s ease-in-out infinite;
+  }
+  @keyframes aurabreathe { 0%, 100% { transform: scale(0.94); } 50% { transform: scale(1.06); } }
+  .btn.begin {
+    margin: 0; padding: 0; border-radius: 50%; position: relative; z-index: 1;
+    width: clamp(112px, 22vmin, 140px); height: clamp(112px, 22vmin, 140px);
+  }
+  .screen.light .btn.begin {
+    background: rgba(255,255,255,0.68); color: var(--leaf);
+    border: 1px solid rgba(44,84,36,0.28); font-weight: 600;
+  }
+  .screen.light .btn.begin:hover {
+    background: rgba(255,255,255,0.92);
+    box-shadow: 0 0 48px rgba(255,255,255,0.85), 0 0 90px rgba(214,240,150,0.7);
+  }
+  @media (max-height: 700px) {
+    .aura-wrap { width: 148px; height: 148px; margin: 8px auto 4px; }
+    .btn.begin { width: 104px; height: 104px; }
+  }
+  body.reduced .aura { animation: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .screen { transition: opacity 0.2s; }
+    .aura { animation: none; }
+  }
 </style>
 </head>
 <body>
@@ -144,10 +245,15 @@
 
 <div id="ui">
   <!-- MENU -->
-  <div class="screen on" id="screen-menu">
+  <div class="screen light on" id="screen-menu">
     <div class="panel">
       <h1>The Lantern Tide</h1>
       <p class="tagline">A village went dark when the sea swallowed its lanterns. Breathe, and let the tide of light come home.</p>
+
+      <div class="aura-wrap">
+        <div class="aura" aria-hidden="true"></div>
+        <button class="btn begin" id="btn-begin">Begin</button>
+      </div>
 
       <div class="label">Journey</div>
       <div class="chips" id="mode-chips" role="radiogroup" aria-label="Journey">
@@ -167,14 +273,13 @@
         <label class="toggle"><input type="checkbox" id="opt-safe" />Gentle holds</label>
       </div>
 
-      <button class="btn" id="btn-begin">Begin</button>
       <p class="note" id="returning"></p>
-      <p class="note">Hold <b>space</b> or press &amp; hold the screen as you breathe in — release as you breathe out. Or just watch and follow. There is no wrong way to breathe here. <a href="#" id="btn-why" class="clickable" style="color:var(--accent);text-decoration:none">Why &amp; safety</a></p>
+      <p class="note">Hold <b>space</b> or press &amp; hold the screen as you breathe in — release as you breathe out. Or just watch and follow. There is no wrong way to breathe here. <a href="#" id="btn-why" class="clickable">Why &amp; safety</a></p>
     </div>
   </div>
 
   <!-- INTRO (first run / revisited via "Why & safety") -->
-  <div class="screen" id="screen-intro">
+  <div class="screen light" id="screen-intro">
     <div class="panel">
       <h1>Before you begin</h1>
       <p class="tagline">Breathing slowly — around six breaths a minute — gently shifts you toward your body's “rest and calm” state, steadying your heart's rhythm and easing tension. That settling is what calls the tide of light home.</p>
@@ -185,7 +290,7 @@
   </div>
 
   <!-- CALIBRATION -->
-  <div class="screen" id="screen-calib">
+  <div class="screen light" id="screen-calib">
     <div class="panel">
       <h1>Listening</h1>
       <p class="tagline" id="calib-why">We'll listen to your breath through the microphone — nothing is recorded or sent anywhere. Two quiet moments to calibrate.</p>
@@ -224,7 +329,7 @@
   </div>
 
   <!-- END -->
-  <div class="screen" id="screen-end">
+  <div class="screen light" id="screen-end">
     <div class="panel">
       <h1 id="end-title">Your Tide Tonight</h1>
       <p class="tagline" id="end-copy">Dawn finds the bay full of light.</p>
@@ -1018,6 +1123,7 @@
     boot() {
       canvas = $('world'); ctx = canvas.getContext('2d');
       reduced = matchMedia('(prefers-reduced-motion: reduce)').matches || Store.get('motion', false);
+      document.body.classList.toggle('reduced', reduced);
       makeGrain(); resize(); World.seed();
       window.addEventListener('resize', resize);
       document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'playing' && !this.paused) this.togglePause(); });
@@ -1051,7 +1157,7 @@
       const sessions = Store.get('sessions', 0);
       if (best > 0) $('returning').textContent = `Welcome back — your longest calm was ${best} breath${best === 1 ? '' : 's'}${sessions > 1 ? ` across ${sessions} tides` : ''}.`;
 
-      $('opt-motion').addEventListener('change', e => { reduced = e.target.checked; Store.set('motion', reduced); resize(); });
+      $('opt-motion').addEventListener('change', e => { reduced = e.target.checked; Store.set('motion', reduced); document.body.classList.toggle('reduced', reduced); resize(); });
       $('opt-sound').addEventListener('change', e => { Audio.on = e.target.checked; Store.set('muted', !e.target.checked); Audio.applyMaster(); });
       $('opt-safe').addEventListener('change', e => { this.safeMode = e.target.checked; Store.set('safe', this.safeMode); });
 
@@ -1081,6 +1187,9 @@
     screen(name) {
       ['menu', 'intro', 'calib', 'pause', 'end'].forEach(s => $('screen-' + s).classList.toggle('on', s === name));
       $('hud').classList.toggle('on', name === 'hud');
+      // browser chrome follows the shell: dawn-light outside the session, night inside it
+      const tm = document.querySelector('meta[name="theme-color"]');
+      if (tm) tm.content = (name === 'hud' || name === 'pause') ? '#05070f' : '#e8f4c2';
     },
 
     async onBegin() {
